@@ -1,0 +1,97 @@
+# flatnotes MCP server.
+#
+# One replica is defined by default. See the commented `-internal` service for
+# the "split by exposure" deployment described in docs/PLAN.md (a public
+# replica that only sees `exposure: public` instances and cannot delete, plus
+# an internal replica that sees everything).
+#
+# Before `docker compose up`:
+#   1. cp .env.example .env
+#   2. cp config/tokens.yaml.example config/tokens.yaml && chmod 600 config/tokens.yaml
+#   3. put each instance's flatnotes .env under ./creds/<server-id>.env
+#      (matching `credentials_file` in config/servers.yaml)
+#   4. edit config/servers.yaml so `url` matches the container DNS names and
+#      set FLATNOTES_NETWORK below to the flatnotes project network
+#      (`docker network ls`).
+
+services:
+  flatnotes-mcp:
+    build: .
+    container_name: flatnotes-mcp
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MCP_SERVERS_FILE: /config/servers.yaml
+      MCP_TOKENS_FILE: /config/tokens.yaml
+      MCP_EXPOSURE: ${MCP_EXPOSURE:-all}
+      MCP_ALLOW_DELETE: ${MCP_ALLOW_DELETE:-true}
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8080"
+      MCP_PATH: /mcp
+      MCP_LOG_LEVEL: ${MCP_LOG_LEVEL:-INFO}
+    ports:
+      # Bound to loopback by default; put a reverse proxy / tunnel in front for
+      # remote access instead of publishing on 0.0.0.0.
+      - "${MCP_BIND:-127.0.0.1}:${MCP_PUBLISHED_PORT:-8800}:8080"
+    volumes:
+      - ./config:/config:ro
+      # Mount only the credentials this replica needs. The whole directory is
+      # mounted here for convenience; for real isolation mount files
+      # individually (see the internal service below).
+      - ./creds:/creds:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - flatnotes
+
+  # ------------------------------------------------------------------------- #
+  # Optional second replica with a different exposure. Enable it by exporting
+  # COMPOSE_PROFILES=split and give the two services distinct published ports.
+  #
+  # NOTE: only uncomment after the network name and per-instance networks are
+  # correct for your deployment - the internal replica must be attached to every
+  # flatnotes instance network it references.
+  # ------------------------------------------------------------------------- #
+  # flatnotes-mcp-internal:
+  #   build: .
+  #   container_name: flatnotes-mcp-internal
+  #   restart: unless-stopped
+  #   profiles: [split]
+  #   env_file:
+  #     - path: .env
+  #       required: false
+  #   environment:
+  #     MCP_SERVERS_FILE: /config/servers.yaml
+  #     MCP_TOKENS_FILE: /config/tokens.yaml
+  #     MCP_EXPOSURE: internal
+  #     MCP_ALLOW_DELETE: "true"
+  #     MCP_HOST: 0.0.0.0
+  #     MCP_PORT: "8080"
+  #   ports:
+  #     - "127.0.0.1:8801:8080"
+  #   volumes:
+  #     - ./config:/config:ro
+  #     - ./creds/main.env:/creds/main.env:ro
+  #     - ./creds/docs.env:/creds/docs.env:ro
+  #     - ./creds/main-ro.env:/creds/main-ro.env:ro
+  #   networks:
+  #     - flatnotes
+  #     - flatnotes-docs
+
+networks:
+  flatnotes:
+    external: true
+    name: ${FLATNOTES_NETWORK:-flatnotes_default}
+  # flatnotes-docs:
+  #   external: true
+  #   name: ${FLATNOTES_DOCS_NETWORK:-flatnotes-docs_default}

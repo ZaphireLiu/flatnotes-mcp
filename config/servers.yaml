@@ -1,0 +1,44 @@
+# flatnotes instance inventory (NON-SENSITIVE).
+#
+# One entry per flatnotes instance this MCP server may talk to. Credentials are
+# NOT stored here - each instance points at its own .env file, which is mounted
+# read-only into the container (see compose.yaml).
+#
+# Fields
+#   id                unique short id, [A-Za-z0-9][A-Za-z0-9_-]*  (used as the
+#                     tool `server` argument and as the scope prefix)
+#   url               base URL reachable from the MCP container
+#   description       shown to the agent by `list_servers`
+#   exposure          public | internal   (filtered by MCP_EXPOSURE)
+#   credentials_file  path to the instance's flatnotes .env (read-only mount)
+#   capabilities      operations the mount can actually perform. MUST mirror
+#                     the mount mode: a `:ro` mount must not advertise write.
+#   path_prefix       optional FLATNOTES_PATH_PREFIX (e.g. /notes)
+#   verify_tls        set false only for self-signed internal endpoints
+#
+# Every token scope must be a subset of the matching server's capabilities;
+# the server refuses to start otherwise.
+
+servers:
+  - id: main
+    url: http://flatnotes:8080
+    description: General purpose notes (primary writable instance)
+    exposure: public
+    credentials_file: /creds/main.env
+    capabilities: [read, write, delete]
+
+  - id: docs
+    url: http://flatnotes-docs:8080
+    description: Isolated library for large reference documents
+    exposure: internal
+    credentials_file: /creds/docs.env
+    capabilities: [read, write, delete]
+
+  # Same data directory as `main`, mounted read-only. flatnotes itself refuses
+  # writes here, so `write`/`delete` are deliberately not advertised.
+  - id: main-ro
+    url: http://flatnotes-main-ro:8080
+    description: General purpose notes, read-only view of `main`
+    exposure: internal
+    credentials_file: /creds/main-ro.env
+    capabilities: [read]

@@ -1,0 +1,40 @@
+# Inbound token -> (server, scope) matrix (SENSITIVE).
+#
+# Copy to config/tokens.yaml, chmod 600, and never commit it.
+#
+# Only SHA-256 digests are stored, so this file cannot be replayed even if it
+# leaks - but the plaintext token CANNOT be recovered from the digest. Record
+# the plaintext in your password manager / client config when you create it.
+#
+# Generate a token + digest (see also scripts/new_token.sh):
+#
+#   T=$(openssl rand -hex 32)
+#   H=$(printf '%s' "$T" | sha256sum | cut -d' ' -f1)
+#
+# Fields
+#   name          label for the token, shown in logs
+#   token_sha256  64 lowercase hex characters (the digest of the plaintext)
+#   servers       map of server id -> list of scopes
+#
+# Constraints enforced at startup:
+#   * every server id here must exist in servers.yaml
+#   * scopes must be a subset of that server's `capabilities`
+#   * digests must be unique
+
+tokens:
+  - name: agent-public-ro
+    token_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    servers:
+      main: [read]
+
+  - name: agent-laptop-rw
+    token_sha256: "1111111111111111111111111111111111111111111111111111111111111111"
+    servers:
+      main: [read, write]
+
+  - name: admin-internal
+    token_sha256: "2222222222222222222222222222222222222222222222222222222222222222"
+    servers:
+      main: [read, write, delete]
+      main-ro: [read]
+      docs: [read, write, delete]

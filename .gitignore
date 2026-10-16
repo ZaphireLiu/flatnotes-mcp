@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- flatnotes-mcp ---------------------------------------------------------
+# Sensitive: the token matrix and per-instance credentials. Never commit.
+/config/tokens.yaml
+/creds/*.env
+
+# Local overrides
+/config/servers.local.yaml
+
