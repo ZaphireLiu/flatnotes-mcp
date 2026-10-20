@@ -1,5 +1,7 @@
 # flatnotes-mcp
 
+English | [简体中文](docs/README_ZH.md)
+
 A remote [MCP](https://modelcontextprotocol.io) server that lets agents read
 and write one or more [flatnotes](https://github.com/dullage/flatnotes)
 instances through semantic tools.
